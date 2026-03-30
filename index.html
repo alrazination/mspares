@@ -193,14 +193,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange);}
     <div class="login-title">SPARES PRO</div>
     <div class="login-sub">AutoParts Shop Management System<br/>Sign in to continue</div>
     <div class="role-tabs">
-      <div class="role-tab active" onclick="selectRole('owner',this)">👑 Owner</div>
-      <div class="role-tab" onclick="selectRole('employee',this)">👷 Employee</div>
+      <div class="role-tab active" onclick="selectRole('employee',this)">👷 Employee</div>
+      <div class="role-tab" onclick="selectRole('owner',this)">👑 Admin</div>
     </div>
     <div class="login-field"><label>Username</label><input type="text" id="login-user" placeholder="Enter username" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <div class="login-field"><label>Password</label><input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
     <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px;justify-content:center;margin-top:4px" onclick="doLogin()">Sign In →</button>
     <div id="login-err"></div>
-    <div class="login-hint" id="login-hint">Default owner: <strong style="color:var(--text)">admin / admin123</strong><br/>Set your own password after first login</div>
+    <div class="login-hint" id="login-hint" style="display:none">Default admin: <strong style="color:var(--text)">admin / admin123</strong><br/>Change your password in Settings after first login</div>
   </div>
 </div>
 
@@ -264,7 +264,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--orange);}
   </div>
   <div id="user-strip">
     <div id="user-label"></div>
-    <div id="sheet-link-wrap"><a id="sheet-link" href="#" target="_blank">📊 Open Google Sheet →</a></div>
+    <div id="sheet-link-wrap" style="display:none"><a id="sheet-link" href="#" target="_blank">📊 Open Google Sheet →</a></div>
   </div>
   <button class="logout-btn" onclick="doLogout()">🚪 Sign Out</button>
 </div>
@@ -639,7 +639,7 @@ let parts=[],invoices=[],purchases=[],wishlist=[],config={};
 let editingPartId=null,editingWishId=null,selectedPurchPartId=null;
 let billItems=[],currentWishTab='pending';
 let currentRole=null; // 'owner' | 'employee'
-let selectedLoginRole='owner';
+let selectedLoginRole='employee';
 
 // ═══ UTILS ═══
 const fmt=n=>'₹'+Number(n).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -659,7 +659,7 @@ function selectRole(role,el){
   selectedLoginRole=role;
   document.querySelectorAll('.role-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  $('login-hint').style.display=role==='owner'?'block':'none';
+  $('login-hint').style.display=role==='owner'||role==='admin'?'block':'none';
 }
 
 function hashPass(s){
@@ -715,6 +715,8 @@ function applyRoleUI(){
   const chip=$('role-chip');
   chip.textContent=isOwner?'👑 Owner':'👷 Employee';
   chip.className='role-chip '+(isOwner?'owner':'employee');
+  // Show Google Sheet link only to owner
+  $('sheet-link-wrap').style.display=isOwner?'block':'none';
   // Nav locks
   ['nav-reports','nav-insights','nav-settings'].forEach(id=>{
     $(id).classList.toggle('locked',!isOwner);
@@ -873,17 +875,17 @@ function renderDashboard(){
   // Stats — hide financial details from employee
   if(isOwner()){
     $('dash-stats').innerHTML=[
-      {label:'Total Revenue',val:fmt(totalRev),sub:fmt(paidRev)+' collected',color:'var(--orange)'},
-      {label:'Outstanding',val:fmt(totalRev-paidRev),sub:invoices.filter(i=>!i.paid).length+' unpaid',color:'var(--yellow)'},
+      {label:'Revenue Collected',val:fmt(paidRev),sub:invoices.filter(i=>i.paid).length+' paid invoices',color:'var(--orange)'},
+      {label:'Outstanding',val:fmt(totalRev-paidRev),sub:invoices.filter(i=>!i.paid).length+' unpaid',color:'var(--yellow)'}, 
       {label:'Stock Value',val:fmt(invVal),sub:totalUnits+' units · '+parts.length+' types',color:'var(--blue)'},
       {label:'Total Purchased',val:fmt(totalPurch),sub:purchases.length+' records',color:'var(--purple)'},
     ].map(s=>`<div class="stat-card" style="--accent:${s.color}"><div class="stat-label">${s.label}</div><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-sub">${s.sub}</div></div>`).join('');
   }else{
     $('dash-stats').innerHTML=[
-      {label:'Parts in Stock',val:parts.length,sub:totalUnits+' total units',color:'var(--blue)'},
+      {label:'Revenue Collected',val:fmt(paidRev),sub:invoices.filter(i=>i.paid).length+' paid invoices',color:'var(--orange)'},
+      {label:'Outstanding',val:fmt(totalRev-paidRev),sub:invoices.filter(i=>!i.paid).length+' unpaid',color:'var(--yellow)'},
       {label:'Low Stock Items',val:ls.length,sub:'need restocking',color:ls.length>0?'var(--red)':'var(--green)'},
       {label:'Invoices Today',val:invoices.filter(i=>i.date===today()).length,sub:'created today',color:'var(--orange)'},
-      {label:'Pending Orders',val:pendingWish,sub:'on order list',color:'var(--purple)'},
     ].map(s=>`<div class="stat-card" style="--accent:${s.color}"><div class="stat-label">${s.label}</div><div class="stat-val" style="color:${s.color}">${s.val}</div><div class="stat-sub">${s.sub}</div></div>`).join('');
   }
   // Low stock
@@ -1071,7 +1073,7 @@ function renderBilling(){
     if(f==='pending'&&i.paid)return false;
     return true;
   });
-  $('bill-sub').textContent=isOwner()?`${invoices.length} invoices · ${fmt(invoices.reduce((s,i)=>s+i.total,0))} total`:`${invoices.length} invoices`;
+  $('bill-sub').textContent=`${invoices.length} invoices · ${fmt(invoices.filter(i=>i.paid).reduce((s,i)=>s+i.total,0))} collected`;
   $('bill-tbody').innerHTML=filtered.length===0?'<tr class="empty-row"><td colspan="9">No invoices found</td></tr>':
     filtered.map(inv=>{
       const actions=isOwner()
@@ -1178,7 +1180,7 @@ function renderReports(){
   const totalPurch=purchases.reduce((s,p)=>s+p.total,0);
   const grossProfit=totalRev-totalPurch;
   $('rep-stats').innerHTML=[
-    {label:'Total Revenue',val:fmt(totalRev),sub:'all invoices',color:'var(--orange)'},
+    {label:'Revenue Collected',val:fmt(paidRev),sub:'paid invoices only',color:'var(--orange)'},
     {label:'Gross Profit',val:fmt(grossProfit),sub:`${totalRev>0?((grossProfit/totalRev)*100).toFixed(1):0}% margin`,color:'var(--green)'},
     {label:'Total Discounts',val:fmt(totalDisc),sub:'given to customers',color:'var(--yellow)'},
     {label:'Outstanding',val:fmt(totalRev-paidRev),sub:invoices.filter(i=>!i.paid).length+' unpaid',color:'var(--red)'},
@@ -1188,7 +1190,7 @@ function renderReports(){
   $('rep-category').innerHTML=catArr.length===0?'<div style="color:var(--muted)">No sales yet</div>':catArr.map(([cat,val])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:600">${cat}</span><span style="color:var(--orange);font-weight:700">${fmt(val)}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${(val/maxCat)*100}%"></div></div></div>`).join('');
   const sm=partSalesMap();const topArr=Object.entries(sm).sort((a,b)=>b[1].qty-a[1].qty).slice(0,7);
   $('rep-topparts').innerHTML=topArr.length===0?'<div style="color:var(--muted)">No sales yet</div>':topArr.map(([,d],i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)"><div style="width:22px;height:22px;border-radius:4px;background:${i===0?'var(--orange)':i<=2?'var(--orange)66':'var(--border2)'};display:flex;align-items:center;justify-content:center;font-family:'Rajdhani',sans-serif;font-size:12px;font-weight:700;color:#fff;flex-shrink:0">${i+1}</div><div style="flex:1;font-weight:600;font-size:13px">${d.name}</div><div style="text-align:right"><div style="color:var(--orange);font-weight:700;font-size:13px">${fmt(d.rev)}</div><div style="font-size:11px;color:var(--muted)">${d.qty} sold</div></div></div>`).join('');
-  $('rep-payments').innerHTML=[['Total Invoiced',fmt(totalRev),'var(--text)'],['Collected',fmt(paidRev),'var(--green)'],['Outstanding',fmt(totalRev-paidRev),'var(--yellow)'],['Discounts Given',fmt(totalDisc),'var(--orange)'],['Collection Rate',totalRev>0?((paidRev/totalRev)*100).toFixed(1)+'%':'0%','var(--blue)'],['Total Purchases',fmt(totalPurch),'var(--purple)'],['Gross Profit',fmt(grossProfit),grossProfit>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>`<div class="kpi-row"><span style="color:var(--subtle);font-weight:500">${l}</span><span style="font-weight:700;color:${c}">${v}</span></div>`).join('');
+  $('rep-payments').innerHTML=[['Total Invoiced (All)',fmt(totalRev),'var(--text)'],['Collected (Paid)',fmt(paidRev),'var(--green)'],['Outstanding',fmt(totalRev-paidRev),'var(--yellow)'],['Discounts Given',fmt(totalDisc),'var(--orange)'],['Collection Rate',totalRev>0?((paidRev/totalRev)*100).toFixed(1)+'%':'0%','var(--blue)'],['Total Purchases',fmt(totalPurch),'var(--purple)'],['Gross Profit',fmt(grossProfit),grossProfit>=0?'var(--green)':'var(--red)']].map(([l,v,c])=>`<div class="kpi-row"><span style="color:var(--subtle);font-weight:500">${l}</span><span style="font-weight:700;color:${c}">${v}</span></div>`).join('');
   const monthly={};invoices.forEach(inv=>{const m=inv.date.slice(0,7);monthly[m]=(monthly[m]||0)+inv.total;});
   const mArr=Object.entries(monthly).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);const maxM=Math.max(...mArr.map(x=>x[1]),1);
   $('rep-monthly').innerHTML=mArr.length===0?'<div style="color:var(--muted)">No data yet</div>':mArr.map(([m,v])=>`<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:600">${m}</span><span style="color:var(--orange);font-weight:700">${fmt(v)}</span></div><div class="bar-bg"><div class="bar-fill" style="width:${(v/maxM)*100}%"></div></div></div>`).join('');
