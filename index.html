@@ -1222,11 +1222,12 @@ document.addEventListener('click',e=>{if(e.target.classList.contains('modal-over
 async function initApp(){
   $('sidebar').style.display='flex';
   $('main').style.display='block';
-  // Check if token already in URL (returning from Google OAuth)
-  if(extractToken()||accessToken){
+  $('login-screen').style.display='none';
+  // Check if token already in memory
+  if(accessToken){
     await bootstrap();
   }else{
-    // Show google auth
+    // Show google auth panel
     $('auth-panel').style.display='flex';
     const saved=localStorage.getItem('ap_cid');
     if(saved)$('client-id-input').value=saved;
@@ -1235,6 +1236,8 @@ async function initApp(){
 
 async function bootstrap(){
   $('auth-panel').style.display='none';
+  $('sidebar').style.display='flex';
+  $('main').style.display='block';
   showSync('Loading data…',false);
   try{
     const info=await getUserInfo();
@@ -1251,25 +1254,29 @@ async function bootstrap(){
   }
 }
 
-// On page load — check if returning from Google OAuth redirect
+// On page load - check if returning from Google OAuth redirect
 window.addEventListener('load',()=>{
   if(extractToken()){
-    // Was redirected from Google — restore role from session
     const savedRole=sessionStorage.getItem('ap_pending_role');
     if(savedRole){
       currentRole=savedRole;
       sessionStorage.removeItem('ap_pending_role');
-      applyRoleUI();
       $('login-screen').style.display='none';
+      $('auth-panel').style.display='none';
+      $('sidebar').style.display='flex';
+      $('main').style.display='block';
+      applyRoleUI();
+      navigate('dashboard');
       bootstrap();
+    } else {
+      $('login-screen').style.display='flex';
     }
   }
 });
 
-// Save role before redirect
 const _origStartAuth=startAuth;
 window.startAuth=function(){
-  sessionStorage.setItem('ap_pending_role',currentRole||'owner');
+  sessionStorage.setItem('ap_pending_role', currentRole||'owner');
   _origStartAuth();
 };
 </script>
