@@ -814,7 +814,7 @@ async function findOrCreateSheet(){
     for(const[k,sh]of Object.entries(SH))await writeRange(`${sh}!A1`,[HDR[k]]);
   }
   const url=`https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
-  $('sheet-link').href=url;$('sheet-link-wrap').style.display='block';
+  $('sheet-link').href=url;if(isOwner())$('sheet-link-wrap').style.display='block';
 }
 async function writeRange(range,values){await shReq(`/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,'PUT',{values});}
 async function readSheet(sh){const r=await shReq(`/${spreadsheetId}/values/${encodeURIComponent(sh+'!A1:Z2000')}`);return r.values||[];}
