@@ -1076,7 +1076,9 @@ function renderBilling(){
   $('bill-sub').textContent=`${invoices.length} invoices · ${fmt(invoices.filter(i=>i.paid).reduce((s,i)=>s+i.total,0))} collected`;
   $('bill-tbody').innerHTML=filtered.length===0?'<tr class="empty-row"><td colspan="9">No invoices found</td></tr>':
     filtered.map(inv=>{
-      const actions=`<div class="btn-group"><button class="btn btn-secondary btn-sm" onclick="viewInvoice('${inv.id}')">View</button><button class="btn ${inv.paid?'btn-secondary':'btn-success'} btn-sm" onclick="togglePaid('${inv.id}')">${inv.paid?'Unpay':'Mark Paid'}</button></div>`;
+      const actions=isOwner()
+        ?`<div class="btn-group"><button class="btn btn-secondary btn-sm" onclick="viewInvoice('${inv.id}')">View</button><button class="btn ${inv.paid?'btn-secondary':'btn-success'} btn-sm" onclick="togglePaid('${inv.id}')">${inv.paid?'Unpay':'Mark Paid'}</button><button class="btn btn-danger btn-sm" onclick="deleteInvoice('${inv.id}')">Del</button></div>`
+        :`<div class="btn-group"><button class="btn btn-secondary btn-sm" onclick="viewInvoice('${inv.id}')">View</button><button class="btn ${inv.paid?'btn-secondary':'btn-success'} btn-sm" onclick="togglePaid('${inv.id}')">${inv.paid?'Unpay':'Mark Paid'}</button></div>`;
       return`<tr><td style="font-family:'Rajdhani',sans-serif;color:var(--orange);font-weight:700">#${inv.id.slice(-5)}</td><td style="font-weight:600">${inv.customer}</td><td style="color:var(--subtle);font-size:12px">${inv.date}</td><td style="color:var(--muted)">${inv.items.length} item${inv.items.length>1?'s':''}</td><td>${fmt(inv.subtotal||inv.total)}</td><td>${inv.discountType!=='none'&&inv.discountVal>0?`<span class="badge badge-green">-${inv.discountType==='pct'?inv.discountVal+'%':fmt(inv.discountVal)}</span>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</td><td style="font-weight:700;color:var(--orange)">${fmt(inv.total)}</td><td><span class="badge ${inv.paid?'badge-green':'badge-yellow'}">${inv.paid?'Paid':'Pending'}</span></td><td>${actions}</td></tr>`;
     }).join('');
 }
@@ -1165,6 +1167,13 @@ function viewInvoice(id){
 }
 async function togglePaid(id){
   invoices=invoices.map(i=>i.id===id?{...i,paid:!i.paid}:i);renderAll();await saveInvoices();
+}
+async function deleteInvoice(id){
+  if(!isOwner())return;
+  if(!confirm('Delete this invoice? This cannot be undone.'))return;
+  invoices=invoices.filter(i=>i.id!==id);
+  $('invoice-view-wrap').innerHTML='';
+  renderAll();await saveInvoices();
 }
 
 // ═══ REPORTS (owner only) ═══
